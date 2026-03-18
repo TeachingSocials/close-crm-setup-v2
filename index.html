@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Teaching Socials - CRM Setup v2</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { background: #0a0a0f; color: #e2e8f0; font-family: 'Courier New', monospace; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 40px 20px; }
+    .container { width: 100%; max-width: 680px; }
+    .badge { display: inline-block; background: #1a1a2e; border: 1px solid #6366f1; color: #818cf8; font-size: 11px; padding: 3px 10px; border-radius: 4px; letter-spacing: 2px; margin-bottom: 16px; }
+    h1 { font-size: 22px; font-weight: 700; color: #f1f5f9; letter-spacing: 3px; text-transform: uppercase; margin-bottom: 6px; }
+    .sub { font-size: 11px; color: #64748b; letter-spacing: 2px; margin-bottom: 40px; }
+    .card { background: #0f0f1a; border: 1px solid #1e293b; border-radius: 8px; padding: 28px; margin-bottom: 20px; }
+    .label { font-size: 10px; letter-spacing: 2px; color: #6366f1; text-transform: uppercase; margin-bottom: 10px; display: block; }
+    .input-row { display: flex; gap: 12px; }
+    input { flex: 1; background: #1e293b; border: 1px solid #334155; border-radius: 6px; color: #f1f5f9; font-family: 'Courier New', monospace; font-size: 14px; padding: 12px 16px; outline: none; transition: border-color 0.2s; }
+    input:focus { border-color: #6366f1; }
+    input::placeholder { color: #475569; }
+    button { background: #6366f1; color: white; border: none; border-radius: 6px; padding: 12px 24px; font-family: 'Courier New', monospace; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; transition: background 0.2s; white-space: nowrap; }
+    button:hover { background: #4f46e5; }
+    button:disabled { background: #334155; color: #64748b; cursor: not-allowed; }
+    .log-panel { background: #050508; border: 1px solid #1e293b; border-radius: 8px; padding: 20px; min-height: 200px; max-height: 480px; overflow-y: auto; font-size: 12px; line-height: 1.8; }
+    .log-panel .placeholder { color: #334155; font-size: 11px; letter-spacing: 1px; }
+    .log-line { display: block; }
+    .log-line.success { color: #34d399; }
+    .log-line.skip { color: #64748b; }
+    .log-line.error { color: #f87171; }
+    .log-line.info { color: #818cf8; }
+    .log-line.section { color: #f1f5f9; margin-top: 8px; font-weight: bold; }
+    .footer { text-align: center; font-size: 10px; color: #1e293b; letter-spacing: 2px; margin-top: 24px; }
+    .spinner { display: inline-block; width: 10px; height: 10px; border: 2px solid #6366f1; border-top-color: transparent; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; vertical-align: middle; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div class="container">
+  <div class="badge">// V2 BETA</div>
+  <h1>CRM Setup</h1>
+  <p class="sub">TEACHING SOCIALS - CLOSE CRM KONFIGURATION v2.0</p>
+  <div class="card">
+    <span class="label">// API Key Authentication</span>
+    <div class="input-row">
+      <input type="password" id="apiKey" placeholder="api_xxxxxxxxxxxxxxxxxx" autocomplete="off"/>
+      <button id="btn" onclick="startSetup()">EXECUTE</button>
+    </div>
+  </div>
+  <div class="log-panel" id="log">
+    <span class="placeholder">// SYSTEM BEREIT - API KEY EINGEBEN UND EXECUTE DRUECKEN</span>
+  </div>
+  <div class="footer">TEACHING SOCIALS CRM SETUP v2 - ALL ACTIVITY LOGGED</div>
+</div>
+<script>
+  async function startSetup() {
+    const apiKey = document.getElementById('apiKey').value.trim();
+    const btn = document.getElementById('btn');
+    const logEl = document.getElementById('log');
+    if (!apiKey) { alert('Bitte API Key eingeben.'); return; }
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>RUNNING';
+    logEl.innerHTML = '';
+    function addLine(text, cls) {
+      if (!text || !text.trim()) return;
+      const span = document.createElement('span');
+      span.className = 'log-line ' + (cls || '');
+      span.textContent = text.trim();
+      logEl.appendChild(span);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    try {
+      addLine('Verbinde mit Close API...', 'info');
+      const res = await fetch('/api/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ apiKey }) });
+      const data = await res.json();
+      if (data.error) { addLine('FEHLER: ' + data.error, 'error'); return; }
+      logEl.innerHTML = '';
+      for (const line of data.logs) {
+        let cls = 'info';
+        if (line.includes('✓') || line.includes('✅')) cls = 'success';
+        else if (line.includes('→')) cls = 'skip';
+        else if (line.includes('❌') || line.includes('⚠️')) cls = 'error';
+        else if (line.includes('📋') || line.includes('🔧') || line.includes('👁') || line.includes('🚀')) cls = 'section';
+        addLine(line, cls);
+      }
+    } catch(e) { addLine('Netzwerkfehler: ' + e.message, 'error'); }
+    finally { btn.disabled = false; btn.innerHTML = 'EXECUTE'; }
+  }
+  document.getElementById('apiKey').addEventListener('keydown', e => { if(e.key==='Enter') startSetup(); });
+</script>
+</body>
+</html>
