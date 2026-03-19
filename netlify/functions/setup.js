@@ -115,24 +115,38 @@ async function runSetup(apiKey, log) {
   const orgName = (me.organizations && me.organizations[0]) ? me.organizations[0].name : "Unknown";
   log("✅ Verbunden als: " + (me.first_name || me.email || "User") + " | Org: " + orgName);
 
+  // Lead Statuses - case-insensitive dedup
   log("\n📋 Erstelle Lead Statuses...");
   const statusMap = {};
   const existingStatuses = await apiGet(apiKey, "/status/lead");
   const existingStatusMap = {};
-  for (const s of existingStatuses.data || []) existingStatusMap[s.label] = s.id;
+  for (const s of (existingStatuses.data || [])) {
+    existingStatusMap[s.label.toLowerCase()] = { id: s.id, label: s.label };
+  }
   for (const label of LEAD_STATUSES) {
-    if (existingStatusMap[label]) { statusMap[label] = existingStatusMap[label]; log(" → '" + label + "' bereits vorhanden"); }
-    else { const r = await apiPost(apiKey, "/status/lead", { label }); statusMap[label] = r.id; log(" ✓ '" + label + "' erstellt"); }
+    const existing = existingStatusMap[label.toLowerCase()];
+    if (existing) {
+      statusMap[label] = existing.id;
+      log(" → '" + label + "' bereits vorhanden (als '" + existing.label + "')");
+    } else {
+      const r = await apiPost(apiKey, "/status/lead", { label });
+      statusMap[label] = r.id;
+      log(" ✓ '" + label + "' erstellt");
+    }
   }
 
+  // Lead Custom Fields - case-insensitive dedup
   log("\n🔧 Erstelle Lead Custom Fields...");
   const fieldMap = {};
   const schema = await apiGet(apiKey, "/custom_field_schema/lead");
   const existingFields = {};
-  for (const f of (schema.fields || [])) existingFields[f.name] = f.id;
+  for (const f of (schema.fields || [])) existingFields[f.name.toLowerCase()] = { id: f.id, name: f.name };
   for (const field of LEAD_CUSTOM_FIELDS) {
-    if (existingFields[field.name]) { fieldMap[field.name] = existingFields[field.name]; log(" → '" + field.name + "' bereits vorhanden"); }
-    else {
+    const existing = existingFields[field.name.toLowerCase()];
+    if (existing) {
+      fieldMap[field.name] = existing.id;
+      log(" → '" + field.name + "' bereits vorhanden");
+    } else {
       const body = { name: field.name, type: field.type };
       if (field.choices) body.choices = field.choices;
       const r = await apiPost(apiKey, "/custom_field/lead", body);
@@ -141,13 +155,15 @@ async function runSetup(apiKey, log) {
     }
   }
 
+  // Contact Custom Fields - case-insensitive dedup
   log("\n🔧 Erstelle Contact Custom Fields...");
   const contactSchema = await apiGet(apiKey, "/custom_field_schema/contact");
   const existingCF = {};
-  for (const f of (contactSchema.fields || [])) existingCF[f.name] = f.id;
+  for (const f of (contactSchema.fields || [])) existingCF[f.name.toLowerCase()] = f.id;
   for (const field of CONTACT_CUSTOM_FIELDS) {
-    if (existingCF[field.name]) { log(" → '" + field.name + "' bereits vorhanden"); }
-    else {
+    if (existingCF[field.name.toLowerCase()]) {
+      log(" → '" + field.name + "' bereits vorhanden");
+    } else {
       const body = { name: field.name, type: field.type };
       if (field.choices) body.choices = field.choices;
       await apiPost(apiKey, "/custom_field/contact", body);
@@ -155,17 +171,22 @@ async function runSetup(apiKey, log) {
     }
   }
 
+  // Smart Views - case-insensitive dedup
   log("\n👁️ Erstelle Smart Views...");
   const existingSV = await apiGet(apiKey, "/saved_search?type__in=lead,contact&_limit=100");
-  const existingSVNames = new Set((existingSV.data || []).map(v => v.name));
+  const existingSVNames = new Set((existingSV.data || []).map(v => v.name.toLowerCase()));
   for (const view of SMART_VIEWS) {
-    if (existingSVNames.has(view.name)) { log(" → '" + view.name + "' bereits vorhanden"); continue; }
+    if (existingSVNames.has(view.name.toLowerCase())) {
+      log(" → '" + view.name + "' bereits vorhanden");
+      continue;
+    }
     const resolvedQuery = replacePlaceholders(view.s_query, statusMap, fieldMap);
     try {
       await apiPost(apiKey, "/saved_search", { name: view.name, type: view.type, is_shared: view.is_shared, s_query: resolvedQuery });
       log(" ✓ '" + view.name + "' erstellt");
     } catch(e) { log(" ⚠️ '" + view.name + "' Fehler: " + e.message); }
   }
+
   log("\n✅ Setup vollstaendig abgeschlossen!");
 }
 
