@@ -1,25 +1,20 @@
 name: Close CRM Setup
-
 on:
   workflow_dispatch:
       inputs:
             api_key:
-                    description: 'Close CRM API Key (z.B. api_xxxxx)'
+                    description: Close CRM API Key
                             required: true
                                     type: string
-
                                     jobs:
                                       setup:
                                           runs-on: ubuntu-latest
                                               steps:
                                                     - uses: actions/checkout@v3
-
-                                                                - name: Setup Node.js
-                                                                        uses: actions/setup-node@v3
-                                                                                with:
-                                                                                          node-version: '18'
-
-                                                                                                      - name: Run CRM Setup
-                                                                                                              run: node netlify/functions/setup-standalone.js
-                                                                                                                      env:
-                                                                                                                                CLOSE_API_KEY: ${{ github.event.inputs.api_key }}
+                                                          - uses: actions/setup-node@v3
+                                                                  with:
+                                                                            node-version: '18'
+                                                                                  - name: Run CRM Setup
+                                                                                          run: node netlify/functions/setup-standalone.js
+                                                                                                  env:
+                                                                                                            CLOSE_API_KEY: ${{ github.event.inputs.api_key }}
